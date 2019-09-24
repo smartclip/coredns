@@ -171,6 +171,13 @@ func ParseStanza(c *caddy.Controller) (*Kubernetes, error) {
 				continue
 			}
 			return nil, c.ArgErr()
+		case "podip":
+			args := c.RemainingArgs()
+			if len(args) > 0 {
+				return nil, c.ArgErr()
+			}
+			k8s.podIP = true
+			continue
 		case "namespaces":
 			args := c.RemainingArgs()
 			if len(args) > 0 {

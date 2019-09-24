@@ -19,6 +19,7 @@ import (
 
 const (
 	podIPIndex            = "PodIP"
+	podNameIndex          = "PodName"
 	svcNameNamespaceIndex = "NameNamespace"
 	svcIPIndex            = "ServiceIP"
 	epNameNamespaceIndex  = "EndpointNameNamespace"
@@ -30,7 +31,8 @@ type dnsController interface {
 	EndpointsList() []*object.Endpoints
 	SvcIndex(string) []*object.Service
 	SvcIndexReverse(string) []*object.Service
-	PodIndex(string) []*object.Pod
+	PodIndexByIP(string) []*object.Pod
+	PodIndexByName(string) []*object.Pod
 	EpIndex(string) []*object.Endpoints
 	EpIndexReverse(string) []*object.Endpoints
 
@@ -123,7 +125,7 @@ func newdnsController(kubeClient kubernetes.Interface, opts dnsControlOpts) *dns
 			},
 			&api.Pod{},
 			cache.ResourceEventHandlerFuncs{AddFunc: dns.Add, UpdateFunc: dns.Update, DeleteFunc: dns.Delete},
-			cache.Indexers{podIPIndex: podIPIndexFunc},
+			cache.Indexers{podIPIndex: podIPIndexFunc, podNameIndex: podNameIndexFunc},
 			object.DefaultProcessor(object.ToPod(opts.skipAPIObjectsCleanup)),
 		)
 	}
@@ -191,6 +193,14 @@ func newdnsController(kubeClient kubernetes.Interface, opts dnsControlOpts) *dns
 		cache.ResourceEventHandlerFuncs{})
 
 	return &dns
+}
+
+func podNameIndexFunc(obj interface{}) ([]string, error) {
+	p, ok := obj.(*object.Pod)
+	if !ok {
+		return nil, errObj
+	}
+	return []string{p.Name}, nil
 }
 
 func podIPIndexFunc(obj interface{}) ([]string, error) {
@@ -349,8 +359,16 @@ func (dns *dnsControl) EndpointsList() (eps []*object.Endpoints) {
 	return eps
 }
 
-func (dns *dnsControl) PodIndex(ip string) (pods []*object.Pod) {
-	os, err := dns.podLister.ByIndex(podIPIndex, ip)
+func (dns *dnsControl) PodIndexByName(name string) (pods []*object.Pod) {
+	return dns.PodIndex(podNameIndex, name)
+}
+
+func (dns *dnsControl) PodIndexByIP(ip string) (pods []*object.Pod) {
+	return dns.PodIndex(podIPIndex, ip)
+}
+
+func (dns *dnsControl) PodIndex(index, key string) (pods []*object.Pod) {
+	os, err := dns.podLister.ByIndex(index, key)
 	if err != nil {
 		return nil
 	}

@@ -25,10 +25,11 @@ type recordRequest struct {
 // that is not parsed will have the wildcard "*" value (except r.endpoint).
 // Potential underscores are stripped from _port and _protocol.
 func parseRequest(name, zone string) (r recordRequest, err error) {
-	// 3 Possible cases:
+	// 4 Possible cases:
 	// 1. _port._protocol.service.namespace.pod|svc.zone
 	// 2. (endpoint): endpoint.service.namespace.pod|svc.zone
 	// 3. (service): service.namespace.pod|svc.zone
+	// 4. (podname): podname.cluster.local
 	//
 	// Federations are handled in the federation plugin. And aren't parsed here.
 
@@ -55,6 +56,12 @@ func parseRequest(name, zone string) (r recordRequest, err error) {
 	if last < 0 {
 		return r, nil
 	}
+
+	r.podOrSvc = segs[last]
+	if last == 0 {
+		return r, errPodNameOnly
+	}
+
 	r.podOrSvc = segs[last]
 	if r.podOrSvc != Pod && r.podOrSvc != Svc {
 		return r, errInvalidRequest

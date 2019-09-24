@@ -39,6 +39,7 @@ type Kubernetes struct {
 	APIConn          dnsController
 	Namespaces       map[string]struct{}
 	podMode          string
+	podIP            bool
 	endpointNameMode bool
 	Fall             fall.F
 	ttl              uint32
@@ -82,6 +83,7 @@ var (
 	errNoItems        = errors.New("no items found")
 	errNsNotExposed   = errors.New("namespace is not exposed")
 	errInvalidRequest = errors.New("invalid query name")
+	errPodNameOnly    = errors.New("Pod Name only")
 )
 
 // Services implements the ServiceBackend interface.
@@ -253,6 +255,12 @@ func (k *Kubernetes) InitKubeCache() (err error) {
 // Records looks up services in kubernetes.
 func (k *Kubernetes) Records(ctx context.Context, state request.Request, exact bool) ([]msg.Service, error) {
 	r, e := parseRequest(state.Name(), state.Zone)
+
+	if k.podIP && e == errPodNameOnly {
+		pods, err := k.findCustomPods(r.podOrSvc)
+		return pods, err
+	}
+
 	if e != nil {
 		return nil, e
 	}
@@ -345,7 +353,7 @@ func (k *Kubernetes) findPods(r recordRequest, zone string) (pods []msg.Service,
 		}
 	}
 
-	for _, p := range k.APIConn.PodIndex(ip) {
+	for _, p := range k.APIConn.PodIndexByName(ip) {
 		// If namespace has a wildcard, filter results against Corefile namespace list.
 		if wildcard(namespace) && !k.namespaceExposed(p.Namespace) {
 			continue
@@ -359,6 +367,25 @@ func (k *Kubernetes) findPods(r recordRequest, zone string) (pods []msg.Service,
 			err = nil
 		}
 	}
+	return pods, err
+}
+
+func (k *Kubernetes) findCustomPods(name string) (pods []msg.Service, err error) {
+	for _, p := range k.APIConn.PodIndexByName(name) {
+		// If namespace has a wildcard, filter results against Corefile namespace list.
+		if !k.namespaceExposed(p.Namespace) {
+			continue
+		}
+
+		s := msg.Service{Key: strings.Join([]string{p.Name}, "/"), Host: p.PodIP, TTL: k.ttl}
+		pods = append(pods, s)
+		err = nil
+	}
+
+	if len(pods) == 0 {
+		return nil, errNoItems
+	}
+
 	return pods, err
 }
 
