@@ -176,7 +176,11 @@ func ParseStanza(c *caddy.Controller) (*Kubernetes, error) {
 			if len(args) > 0 {
 				return nil, c.ArgErr()
 			}
-			k8s.podIP = true
+			if k8s.podMode == podModeVerified {
+				k8s.podIP = true
+			} else {
+				log.Warningf("podip was set but podMode is not %s. Therefore podip setting is ignored (no pods will be resolved). You may have specified podMode below podip in your core file", podModeVerified)
+			}
 			continue
 		case "namespaces":
 			args := c.RemainingArgs()

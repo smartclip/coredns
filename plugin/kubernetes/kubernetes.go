@@ -83,7 +83,7 @@ var (
 	errNoItems        = errors.New("no items found")
 	errNsNotExposed   = errors.New("namespace is not exposed")
 	errInvalidRequest = errors.New("invalid query name")
-	errPodNameOnly    = errors.New("Pod Name only")
+	errPodNameOnly    = errors.New("pod name only")
 )
 
 // Services implements the ServiceBackend interface.

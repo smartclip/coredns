@@ -29,7 +29,7 @@ func parseRequest(name, zone string) (r recordRequest, err error) {
 	// 1. _port._protocol.service.namespace.pod|svc.zone
 	// 2. (endpoint): endpoint.service.namespace.pod|svc.zone
 	// 3. (service): service.namespace.pod|svc.zone
-	// 4. (podname): podname.cluster.local
+	// 4. (podname): podname.zone
 	//
 	// Federations are handled in the federation plugin. And aren't parsed here.
 
@@ -62,7 +62,6 @@ func parseRequest(name, zone string) (r recordRequest, err error) {
 		return r, errPodNameOnly
 	}
 
-	r.podOrSvc = segs[last]
 	if r.podOrSvc != Pod && r.podOrSvc != Svc {
 		return r, errInvalidRequest
 	}
